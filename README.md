@@ -66,7 +66,7 @@ app/
 ├── deps.py          # 依赖注入（会话、当前用户）
 ├── security.py      # 密码哈希与 JWT
 ├── models/          # SQLAlchemy 模型
-├── schemas/         # Pydantic 请求/响应
+├── schemas/         # Pydantic 请求/响应（接口用的数据格式文件）
 └── routers/         # API 路由
 ```
 

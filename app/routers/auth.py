@@ -50,21 +50,49 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
     #返回user对象，包括id、username、email、created_at四个字段
     return user
 
-
+#路由装饰器
+#@router.post这是一个POST端口（提交数据）
+#/login表示路径是/auth/login
+#response_model成功时按TokenResponse格式返回
 @router.post("/login", response_model=TokenResponse)
+#payload: UserLogin：前端发过来的JSON数据，FastAPI自动帮你转成一个UserLogin对象
+#可以写payload.username和payload.password来访问用户名和密码
+#db: Session = Depends(get_db)：和register一样，每个请求临时开一个数据库连接，用完关闭
 def login(payload: UserLogin, db: Session = Depends(get_db)):
     """用户登录：校验用户名密码 → 签发 JWT。"""
+    #db.query(User):从users表查
+    #.filter(User.username == payload.username):过滤条件，用户名等于前端发过来的用户名
+    #first():返回第一条记录，如果有多条则返回第一条
+    #等价SQL：SELECT * FROM users WHERE username = 'username' LIMIT 1;
     user = db.query(User).filter(User.username == payload.username).first()
+    #如果user为空，或者密码不正确，则返回401错误
     if user is None or not verify_password(payload.password, user.password_hash):
+        #raise HTTPException主动中断，向客户端返回错误
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_401_UNAUTHORIZED,#401错误：未授权
             detail="用户名或密码错误",
         )
 
+    #create_access_token(user.id)：创建访问令牌，user.id是用户id
+    #TokenResponse包装成响应对象
+    #return：FastAPI转成JSON发给客户端
     return TokenResponse(access_token=create_access_token(user.id))
 
-
+'''
+login  →  拿到 access_token
+        ↓
+Swagger Authorize 里粘贴 token
+        ↓
+GET /auth/me  →  返回「当前登录用户是谁」
+'''
+#路由装饰器
+#@router.get这是一个GET端口（获取数据）
+#/me表示路径是/auth/me
+#response_model成功时按UserResponse格式返回（也就是返回id\username\email\created_at）
 @router.get("/me", response_model=UserResponse)
+#Depends是FastAPI里的依赖注入：在运行你的接口函数之前，FastAPI会先调用get_current_user函数
+#把结果注入进来当参数用
+#get_current_user函数：从请求里取出token→验token→查数据库→返回当前登陆的User对象
 def me(current_user: User = Depends(get_current_user)):
     """获取当前登录用户信息（需携带 Bearer Token，用于 Postman 测通）。"""
     return current_user

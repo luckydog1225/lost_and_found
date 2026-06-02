@@ -34,6 +34,7 @@ def get_current_user(
     """从 Authorization: Bearer <token> 解析当前登录用户。"""
     user_id = decode_access_token(credentials.credentials)
     if user_id is None:
+        #raise HTTPException（异常）主动中断，向客户端返回错误
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="无效或已过期的令牌",
