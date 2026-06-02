@@ -1,0 +1,18 @@
+1.进入venv虚拟环境，启动服务
+.\venv\Scripts\uvicorn.exe app.main:app --reload
+
+2.测试服务是否正常
+浏览器：http://127.0.0.1:8000/health
+接口文档：http://127.0.0.1:8000/docs
+
+3..env 需配置（见 .env.example）
+   DATABASE_URL=...
+   JWT_SECRET_KEY=...（登录/JWT 必填）
+
+4.认证接口（Postman 或 Swagger）
+   POST /auth/register  注册
+   POST /auth/login     登录，拿 access_token
+   GET  /auth/me        Header: Authorization: Bearer <token>
+
+5.登录 MySQL
+mysql -u root -p

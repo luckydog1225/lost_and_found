@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.deps import get_db
+from app.deps import get_current_user, get_db
 from app.models.user import User
-from app.schemas.user import UserRegister, UserResponse
-from app.security import hash_password
+from app.schemas.user import TokenResponse, UserLogin, UserRegister, UserResponse
+from app.security import create_access_token, hash_password, verify_password
 
 #prefix='/auth' 表示所有路由都以 /auth 开头
 #tags=["认证"] 表示在swagger文档里归到【认证】分组
@@ -49,3 +49,22 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 
     #返回user对象，包括id、username、email、created_at四个字段
     return user
+
+
+@router.post("/login", response_model=TokenResponse)
+def login(payload: UserLogin, db: Session = Depends(get_db)):
+    """用户登录：校验用户名密码 → 签发 JWT。"""
+    user = db.query(User).filter(User.username == payload.username).first()
+    if user is None or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户名或密码错误",
+        )
+
+    return TokenResponse(access_token=create_access_token(user.id))
+
+
+@router.get("/me", response_model=UserResponse)
+def me(current_user: User = Depends(get_current_user)):
+    """获取当前登录用户信息（需携带 Bearer Token，用于 Postman 测通）。"""
+    return current_user
