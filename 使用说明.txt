@@ -16,3 +16,10 @@
 
 5.登录 MySQL
 mysql -u root -p
+
+6.建表 / 新增模型后（如 posts）
+.\venv\Scripts\python.exe -m app.init_db
+MySQL: USE lost_and_found; SHOW TABLES; DESCRIBE posts;
+
+7.启动FastAPI后端服务
+.\venv\Scripts\uvicorn.exe app.main:app --reload --host 127.0.0.1 --port 8000

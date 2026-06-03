@@ -2,10 +2,16 @@
 这个文件用来定义用户模型，也就是User表长什么样子
 '''
 
+from __future__ import annotations
+
 from datetime import datetime
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.post import Post
 
 from sqlalchemy import DateTime, String, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -29,3 +35,5 @@ class User(Base):
         #不能为空
         nullable=False,
     )
+
+    posts: Mapped[list[Post]] = relationship("Post", back_populates="author")
