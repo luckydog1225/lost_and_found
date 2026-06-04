@@ -1,6 +1,6 @@
 # 失物招领平台 — 后端 API
 
-基于 **FastAPI + MySQL + SQLAlchemy** 的失物招领后端服务，当前已实现用户注册、登录（JWT）与基础健康检查。
+基于 **FastAPI + MySQL + SQLAlchemy** 的失物招领后端服务，当前已实现用户注册、登录（JWT）、发帖（失物/招领）与基础健康检查。
 
 ## 功能
 
@@ -10,6 +10,7 @@
 | POST | `/auth/register` | 用户注册（bcrypt 存密码） |
 | POST | `/auth/login` | 用户登录，返回 JWT |
 | GET | `/auth/me` | 获取当前用户（需 Bearer Token） |
+| POST | `/api/posts` | 发布失物/招领帖子（需 Bearer Token） |
 
 交互式文档：启动后访问 [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
@@ -57,6 +58,11 @@ copy .env.example .env
 3. **当前用户** `GET http://127.0.0.1:8000/auth/me`  
    Headers：`Authorization: Bearer <access_token>`
 
+4. **发帖** `POST http://127.0.0.1:8000/api/posts`  
+   Headers：`Authorization: Bearer <access_token>`  
+   Body (JSON)：`{"post_type":"lost","title":"黑色钱包","description":"图书馆三楼丢失","location":"图书馆"}`  
+   `post_type` 取值：`lost`（失物）或 `found`（招领）；`location` 可省略。
+
 ## 项目结构
 
 ```
@@ -65,9 +71,9 @@ app/
 ├── database.py      # 数据库连接
 ├── deps.py          # 依赖注入（会话、当前用户）
 ├── security.py      # 密码哈希与 JWT
-├── models/          # SQLAlchemy 模型
-├── schemas/         # Pydantic 请求/响应（接口用的数据格式文件）
-└── routers/         # API 路由
+├── models/          # SQLAlchemy 模型（users、posts）
+├── schemas/         # Pydantic 请求/响应
+└── routers/         # API 路由（auth、post）
 ```
 
 ## 技术栈

@@ -1,3 +1,11 @@
-from app.schemas.user import UserLogin, UserRegister, UserResponse, TokenResponse
+from app.schemas.post import PostCreate, PostResponse
+from app.schemas.user import TokenResponse, UserLogin, UserRegister, UserResponse
 
-__all__ = ["UserLogin", "UserRegister", "UserResponse", "TokenResponse"]
+__all__ = [
+    "UserLogin",
+    "UserRegister",
+    "UserResponse",
+    "TokenResponse",
+    "PostCreate",
+    "PostResponse",
+]
