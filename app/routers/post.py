@@ -3,15 +3,13 @@
 想象成一个发帖办事窗口：有人在前端点【发启事】，请求会进这个文件里的函数
 由它完成「验身份 → 记进数据库 → 把结果告诉对方」
 '''
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.deps import get_current_user, get_db
-from app.schemas.post import PostCreate, PostResponse
-from app.models.user import User
 from app.models.post import Post
-from app.schemas.post import PostListResponse
-from fastapi import Query
+from app.models.user import User
+from app.schemas.post import PostCreate, PostListResponse, PostResponse
 
 router = APIRouter(prefix="/api/posts", tags=["帖子"])
 
@@ -91,3 +89,24 @@ def get_posts(
         page = page,
         page_size = page_size,
     )
+
+"""帖子详情——用户点进某一条启事，看完整内容"""
+#路由装饰器
+#@router.get这是一个GET端口（获取数据）
+#"/{post_id}"表示路径是/api/posts/{post_id}，{}是占位符，post_id是占位符的值
+#可以是任何字符串，比如/api/posts/1，/api/posts/2，/api/posts/3，等等
+#response_model成功时按PostResponse格式返回
+@router.get("/{post_id}",response_model = PostResponse)
+def get_post(
+    post_id:int, #前端发过来的帖子id
+    db:Session = Depends(get_db), #每个请求临时开一个数据库连接，用完关闭
+):
+    """获取帖子详情"""
+    #post_id是来自url的参数。url：网址=浏览器或Postman访问的完整地址
+    #如果查到了，返回值是Post对象
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if post is None:
+        #如果查不到，返回404错误
+        raise HTTPException(status_code=404,detail="帖子不存在")
+    #把Post对象转换成PostResponse对象，并返回给前端
+    return PostResponse.model_validate(post,from_attributes=True)

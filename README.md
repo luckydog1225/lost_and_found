@@ -1,6 +1,6 @@
 # 失物招领平台 — 后端 API
 
-基于 **FastAPI + MySQL + SQLAlchemy** 的失物招领后端服务，当前已实现用户注册、登录（JWT）、发帖与帖子分页列表，以及基础健康检查。
+基于 **FastAPI + MySQL + SQLAlchemy** 的失物招领后端服务，当前已实现用户注册、登录（JWT）、发帖、帖子分页列表与帖子详情，以及基础健康检查。
 
 ## 功能
 
@@ -12,6 +12,7 @@
 | GET | `/auth/me` | 获取当前用户（需 Bearer Token） |
 | POST | `/api/posts` | 发布失物/招领帖子（需 Bearer Token） |
 | GET | `/api/posts` | 帖子分页列表（`page`、`page_size` 查询参数，无需登录） |
+| GET | `/api/posts/{id}` | 帖子详情（路径参数 `id`，无需登录；不存在返回 404） |
 
 交互式文档：启动后访问 [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
@@ -66,6 +67,9 @@ copy .env.example .env
 
 5. **帖子列表** `GET http://127.0.0.1:8000/api/posts?page=1&page_size=10`  
    无需 Token。响应含 `items`（帖子数组）、`total`、`page`、`page_size`。
+
+6. **帖子详情** `GET http://127.0.0.1:8000/api/posts/1`  
+   将 `1` 换成实际帖子 `id`，无需 Token。不存在时返回 404。
 
 ## 项目结构
 

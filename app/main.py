@@ -6,7 +6,7 @@ from app.routers import auth, post
 #创建FastAPI实例，设置标题为“失物招领”
 app = FastAPI(title="失物招领")
 
-# 注册路由：/auth/* 认证，/api/posts 发帖
+# 注册路由：/auth/* 认证，/api/posts 发帖/列表/详情
 app.include_router(auth.router)
 app.include_router(post.router)
 
