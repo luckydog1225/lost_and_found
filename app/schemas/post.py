@@ -31,3 +31,10 @@ class PostResponse(BaseModel):
 
     model_config = {"from_attributes": True}
     
+class PostListResponse(BaseModel):
+    """后端返回的帖子列表信息。这一页里面返回一行行帖子信息。"""
+    items:list[PostResponse]              #列表里装的是PostResponse对象，每项是一个帖子
+    total:int                      #总帖子数
+    #ge在Pydantic的Field里=greater than or equal,大于等于.le表示小于等于
+    page:int = Field(ge = 1)      #当前页码
+    page_size:int = Field(ge = 1,le = 50) #每页帖子数，每页最小1条，最大50条

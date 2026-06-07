@@ -36,4 +36,5 @@ class User(Base):
         nullable=False,
     )
 
+    #和posts表双向关联
     posts: Mapped[list[Post]] = relationship("Post", back_populates="author")
