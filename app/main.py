@@ -1,17 +1,52 @@
-#引入FastAPI框架
-from fastapi import FastAPI
+"""
+FastAPI 应用入口：注册路由、统一错误响应、健康检查。
+"""
+
+from typing import Any
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.routers import auth, post
+from app.schemas.response import ApiResponse, success
 
-#创建FastAPI实例，设置标题为“失物招领”
 app = FastAPI(title="失物招领")
 
-# 注册路由：/auth/* 认证，/api/posts 发帖/列表/详情
 app.include_router(auth.router)
 app.include_router(post.router)
 
-#给你的 “失物招领” 服务，加一个/health 接口，别人访问这个地址时
-#就返回 {"status": "ok"}，用来确认服务还在正常运行。
-@app.get("/health")
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """接住业务里 raise HTTPException(...) 抛出的错误。"""
+    message = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "code": exc.status_code,
+            "message": message,
+            "data": None,
+        },
+        headers=exc.headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """接住 FastAPI/Pydantic 自动抛出的 422 参数校验错误。"""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": 422,
+            "message": "请求参数校验失败",
+            "data": exc.errors(),
+        },
+    )
+
+
+@app.get("/health", response_model=ApiResponse[dict[str, Any]])
 def health():
-    return {"status": "ok"}
+    """健康检查，确认服务正常运行。"""
+    return success(data={"status": "ok"})

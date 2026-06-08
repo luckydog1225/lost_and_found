@@ -1,6 +1,6 @@
 # 失物招领平台 — 后端 API
 
-基于 **FastAPI + MySQL + SQLAlchemy** 的失物招领后端服务，当前已实现用户注册、登录（JWT）、发帖、帖子分页列表与帖子详情，以及基础健康检查。
+基于 **FastAPI + MySQL + SQLAlchemy** 的失物招领后端服务，当前已实现用户注册、登录（JWT）、发帖、帖子分页列表（支持 `type` 筛选）与帖子详情，统一响应格式 `{code, message, data}`，以及基础健康检查。
 
 ## 功能
 
@@ -11,7 +11,7 @@
 | POST | `/auth/login` | 用户登录，返回 JWT |
 | GET | `/auth/me` | 获取当前用户（需 Bearer Token） |
 | POST | `/api/posts` | 发布失物/招领帖子（需 Bearer Token） |
-| GET | `/api/posts` | 帖子分页列表（`page`、`page_size` 查询参数，无需登录） |
+| GET | `/api/posts` | 帖子分页列表（`page`、`page_size`、`type` 查询参数，无需登录） |
 | GET | `/api/posts/{id}` | 帖子详情（路径参数 `id`，无需登录；不存在返回 404） |
 
 交互式文档：启动后访问 [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
@@ -55,7 +55,7 @@ copy .env.example .env
 
 2. **登录** `POST http://127.0.0.1:8000/auth/login`  
    Body：`{"username":"test01","password":"123456"}`  
-   复制响应中的 `access_token`。
+   复制响应 `data` 中的 `access_token`。
 
 3. **当前用户** `GET http://127.0.0.1:8000/auth/me`  
    Headers：`Authorization: Bearer <access_token>`
@@ -65,8 +65,10 @@ copy .env.example .env
    Body (JSON)：`{"post_type":"lost","title":"黑色钱包","description":"图书馆三楼丢失","location":"图书馆"}`  
    `post_type` 取值：`lost`（失物）或 `found`（招领）；`location` 可省略。
 
-5. **帖子列表** `GET http://127.0.0.1:8000/api/posts?page=1&page_size=10`  
-   无需 Token。响应含 `items`（帖子数组）、`total`、`page`、`page_size`。
+5. **帖子列表** `GET http://127.0.0.1:8000/api/posts?page=1&page_size=10&type=lost`  
+   无需 Token。`type` 可选：`lost` / `found`。响应 `data` 含 `items`、`total`、`page`、`page_size`。
+
+所有接口成功时返回 `{"code":200,"message":"...","data":{...}}`；失败时 `code` 与 HTTP 状态码一致。
 
 6. **帖子详情** `GET http://127.0.0.1:8000/api/posts/1`  
    将 `1` 换成实际帖子 `id`，无需 Token。不存在时返回 404。

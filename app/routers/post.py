@@ -3,22 +3,24 @@
 想象成一个发帖办事窗口：有人在前端点【发启事】，请求会进这个文件里的函数
 由它完成「验身份 → 记进数据库 → 把结果告诉对方」
 '''
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.deps import get_current_user, get_db
-from app.models.post import Post
+from app.models.post import Post,PostType
 from app.models.user import User
 from app.schemas.post import PostCreate, PostListResponse, PostResponse
+from app.schemas.response import success,ApiResponse
 
 router = APIRouter(prefix="/api/posts", tags=["帖子"])
 
 #路由装饰器
 #@router.post这是一个POST端口（提交数据）
 #""表示路径是/api/posts
-#response_model成功时按PostResponse格式返回
+#response_model成功时按ApiResponse[PostResponse]格式返回,也就是统一的返回外壳
 #status_code=status.HTTP_201_CREATED 表示成功时返回201状态码
-@router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ApiResponse[PostResponse], status_code=status.HTTP_201_CREATED)
 def create_post(
     payload:PostCreate, #前端发过来的数据，FastAPI自动帮你转成一个PostCreate对象
     db:Session = Depends(get_db), #每个请求临时开一个数据库连接，用完关闭
@@ -41,23 +43,49 @@ def create_post(
     db.commit()
     #从数据库重新读这条记录，更新Python里的post对象（再读一遍，拿到 id、时间戳）
     db.refresh(post)
-    return post
+    return success(
+        data=PostResponse.model_validate(post, from_attributes=True),
+        message="发帖成功",
+    )
 
 #路由装饰器
 #@router.get这是一个GET端口（获取数据）
 #""表示路径是/api/posts
-#response_model成功时按PostListResponse格式返回
-@router.get("",response_model = PostListResponse)
+#response_model成功时按ApiResponse[PostListResponse]格式返回,也就是统一的返回外壳
+@router.get("",response_model = ApiResponse[PostListResponse])
 def get_posts(
+    #Query是FastAPI里的一个函数，用来从URL中获取参数
+    #1,ge = 1：表示page必须大于等于1
+    #10,ge = 1,le = 50：表示page_size必须大于等于1，小于等于50。10是默认值，如果前端不传，就默认10
     page:int = Query(1,ge = 1),
     page_size:int = Query(10,ge = 1,le = 50),
+    #type:Optional[PostType] = Query(None,description="按类型筛选：lost或found")
+    #表示type是可选的，如果不传，就默认None。
+    #description是给接口文档用的说明文字，不参与实际业务逻辑
+    #在FastAPI里，Query(..., description="...") 会把这段文字写进 OpenAPI 文档（Swagger）。
+    #方便前端或测试的人知道，这个参数可选，用来按【失物】或【招领】筛选帖子
+    type:Optional[PostType] = Query(None,description="按类型筛选：lost或found"),
     db:Session = Depends(get_db),
 ):
-    """获取帖子列表"""
+    '''获取帖子列表'''
+    #offset：跳过前offset条，从第offset+1条开始
+    #比如page=1,page_size=10，则offset=0，从第1条开始
+    #比如page=2,page_size=10，则offset=10，从第11条开始
+    #比如page=3,page_size=10，则offset=20，从第21条开始
     offset = (page - 1) * page_size
-    total = db.query(Post).count() #告诉前端一共多少条帖子
+
+    #query = db.query(Post)：从posts表查.posts表存的是平台上每一条启事（一条记录=一篇帖子）
+    query = db.query(Post)
+    #type是URL查询参数。如果前端传了type，就按type筛选。
+    # 如果没传，默认为None，就查所有帖子。相当于：SELECT * FROM posts;
+    if type is not None:
+        #.filter(...)给查询加where条件
+        #Post.post_type模型里【帖子类型】这一列，值等于type（URL传进来的）
+        query = query.filter(Post.post_type == type)
+    
+    total = query.count() #告诉前端一共多少条帖子
     posts = (
-        db.query(Post)   #从post表查
+        query   #从post表查
         .order_by(Post.created_at.desc())  #按创建时间倒序
         .offset(offset)  #跳过前offset条，从第offset+1条开始
         .limit(page_size)  #只取page_size条
@@ -83,20 +111,33 @@ def get_posts(
     #    item = PostResponse.model_validate(post, from_attributes=True)  # 再转换
     #    items.append(item)                                 # 再放进列表
 
-    return PostListResponse(
-        items = items,
-        total = total,
-        page = page,
-        page_size = page_size,
+    #success会自动补上code=200,message="success",不用手动写了
+    return success(
+        data = PostListResponse(
+            items = items,
+            total = total,
+            page = page,
+            page_size = page_size,
+        )
     )
+
+'''
+对应的SQL语句：
+SELECT COUNT(*) FROM posts WHERE post_type = 'lost';
+或
+SELECT * FROM posts
+WHERE post_type = 'lost'
+ORDER BY created_at DESC
+LIMIT 10 OFFSET 0;
+'''
 
 """帖子详情——用户点进某一条启事，看完整内容"""
 #路由装饰器
 #@router.get这是一个GET端口（获取数据）
 #"/{post_id}"表示路径是/api/posts/{post_id}，{}是占位符，post_id是占位符的值
 #可以是任何字符串，比如/api/posts/1，/api/posts/2，/api/posts/3，等等
-#response_model成功时按PostResponse格式返回
-@router.get("/{post_id}",response_model = PostResponse)
+#response_model成功时按ApiResponse[PostResponse]格式返回,也就是统一的返回外壳
+@router.get("/{post_id}",response_model = ApiResponse[PostResponse])
 def get_post(
     post_id:int, #前端发过来的帖子id
     db:Session = Depends(get_db), #每个请求临时开一个数据库连接，用完关闭
@@ -109,4 +150,6 @@ def get_post(
         #如果查不到，返回404错误
         raise HTTPException(status_code=404,detail="帖子不存在")
     #把Post对象转换成PostResponse对象，并返回给前端
-    return PostResponse.model_validate(post,from_attributes=True)
+    return success(
+        data=PostResponse.model_validate(post, from_attributes=True)
+    )
