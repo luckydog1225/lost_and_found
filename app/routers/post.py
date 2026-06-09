@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.deps import get_current_user, get_db
-from app.models.post import Post,PostType
+from app.models.post import Post,PostType,PostStatus
 from app.models.user import User
 from app.schemas.post import PostCreate, PostListResponse, PostResponse
 from app.schemas.response import success,ApiResponse
@@ -131,6 +131,58 @@ ORDER BY created_at DESC
 LIMIT 10 OFFSET 0;
 '''
 
+
+
+'''查看当前登陆用户自己发的帖子'''
+@router.get("/mine",response_model = ApiResponse[PostListResponse])
+def get_my_posts(
+    page:int = Query(1,ge = 1),
+    page_size:int = Query(10,ge = 1,le = 50),
+    #Optional是Python typing模块里的类型标注工具
+    #用来告诉Python/FastAPI：这个值可以是某种类型，也可以是None
+    type:Optional[PostType] = Query(None,description="按类型筛选：lost或found"),
+    db:Session = Depends(get_db),
+    current_user:User = Depends(get_current_user),
+):
+    """查看当前登陆用户自己发的帖子"""
+    offset = (page - 1) * page_size
+    query = db.query(Post).filter(Post.user_id == current_user.id)
+
+    if type is not None:
+        #筛选符合前端输入的type帖子
+        query = query.filter(Post.post_type == type)
+
+    total = query.count()
+    #查当前页数据
+    posts = (
+        #按创建时间倒序
+        query.order_by(Post.created_at.desc())
+        #跳过前offset条，从第offset+1条开始
+        .offset(offset)
+        #只取page_size条
+        .limit(page_size)
+        .all()
+        #执行SQL语句，返回list[Post]。
+        # 没有.all()，查询不会真正执行，也拿不到数据
+    )
+    #把list[Post]转换成list[PostResponse]
+    items = []
+    for post in posts:
+        #把Post对象转换成PostResponse对象
+        item = PostResponse.model_validate(post, from_attributes=True)
+        #把PostResponse对象放进列表
+    items.append(item)
+    return success(
+        data=PostListResponse(
+            items = items,
+            total = total,
+            page = page,
+            page_size = page_size,
+        )
+    )
+
+
+
 """帖子详情——用户点进某一条启事，看完整内容"""
 #路由装饰器
 #@router.get这是一个GET端口（获取数据）
@@ -152,4 +204,80 @@ def get_post(
     #把Post对象转换成PostResponse对象，并返回给前端
     return success(
         data=PostResponse.model_validate(post, from_attributes=True)
+    )
+
+'''
+把帖子状态标位已解决，且只有发帖本人能操作
+post里面status = open（默认）
+status = closed（已解决）
+'''
+#patch:对已有资源做部分修改。这里就是对帖子状态做部分修改
+@router.patch("/{post_id}/close",response_model = ApiResponse[PostResponse])
+def close_post(
+    post_id:int,
+    db:Session = Depends(get_db),
+    current_user:User = Depends(get_current_user),
+):
+    """把帖子状态标位已解决"""
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if post is None:
+        #HTTPException:是FastAPI里用来主动告诉前端出错了的机制
+        #正常流程用return success返回成功；遇到不该继续的情况
+        #raise HTTPException中断执行，并返回对应的HTTP错误
+        raise HTTPException(status_code=404,detail="帖子不存在")
+    if post.user_id != current_user.id:
+        raise HTTPException(status_code=403,detail="无权操作他人的帖子")
+
+    if post.status == PostStatus.CLOSED:
+        raise HTTPException(status_code=400,detail="帖子已解决")
+
+    post.status = PostStatus.CLOSED
+
+    db.commit()
+    db.refresh(post)
+
+    return success(
+        data = PostResponse.model_validate(post, from_attributes=True),
+        message = "帖子已解决"
+    )
+
+
+'''
+DELETE /api/posts/{post_id}：删除帖子，且只有发帖本人能删
+'''
+@router.delete("/{post_id}",response_model = ApiResponse[None])
+def delete_post(
+    #前端发过来的帖子id
+    post_id:int,
+    #每个请求临时开一个数据库连接，用完关闭
+    #Depends（）：依赖注入，函数接口需要什么东西，你告诉FastAPI去调用谁，
+    #FastAPI会先执行那个函数，再把返回值赋值给db
+    db:Session = Depends(get_db),
+    #从请求里取出token→验token→查数据库→返回当前登陆的User对象
+    #get_current_user:从请求头里读token；解析token，拿到用户id；
+    #按用户id查数据库，拿到User对象（数据库里某一个用户的完整信息）；返回给current_user
+    current_user:User = Depends(get_current_user),
+):
+    """删除帖子"""
+    #Post是一个类，对应的是posts表
+    #post是变量名，存的是从数据库查出来的那一条帖子
+    #post_id是前端发过来的帖子编号
+    #query(Post)：从posts表查
+    #filter(Post.id == post.id)：where条件，帖子id等于post_id。取出来赋给post
+    post = db.query(Post).filter(Post.id == post_id).first()
+    if post is None:
+        raise HTTPException(status_code=404,detail="帖子不存在")
+    
+    if post.user_id != current_user.id:
+        raise HTTPException(status_code=403,detail="无权删除他人的帖子")
+    
+    #删除帖子
+    #标记要删掉这条。并不是立刻删，而是把这条记录放进会话的待删除队列
+    #相当于告诉SQLAichemy：这条帖子我准备删掉
+    db.delete(post)
+    #真正执行DELETE FROM posts WHERE id = post_id;语句
+    db.commit()
+    #返回成功信息
+    return success(
+        message="删除帖子成功",
     )

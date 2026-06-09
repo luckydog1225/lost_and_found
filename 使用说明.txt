@@ -1,43 +1,243 @@
-1.进入venv虚拟环境，启动服务
-.\venv\Scripts\uvicorn.exe app.main:app --reload
-
-2.测试服务是否正常
-浏览器：http://127.0.0.1:8000/health
-接口文档：http://127.0.0.1:8000/docs
-
-3..env 需配置（见 .env.example）
-   DATABASE_URL=...
-   JWT_SECRET_KEY=...（登录/JWT 必填）
-
-4.统一响应格式（所有接口）
-   成功：{"code":200,"message":"success","data":{...}}
-   失败：{"code":400/401/404/422,"message":"错误说明","data":null或校验详情}
-
-5.认证接口（Postman 或 Swagger）
-   POST /auth/register  注册
-   POST /auth/login     登录，data 里拿 access_token
-   GET  /auth/me        Header: Authorization: Bearer <token>
-
-6.发帖（需先登录，Swagger 点 Authorize 粘贴 token）
-   POST /api/posts
-   Body: {"post_type":"lost","title":"标题","description":"详情","location":"地点可选"}
-   post_type: lost | found
-
-7.帖子列表（无需登录）
-   GET /api/posts?page=1&page_size=10
-   GET /api/posts?type=lost          按类型筛选（lost | found）
-   data 里含 items、total、page、page_size；按创建时间倒序
-
-8.帖子详情（无需登录）
-   GET /api/posts/{id}   例：GET /api/posts/1
-   data 里是单条帖子；id 不存在时 code=404
-
-9.登录 MySQL
-mysql -u root -p
-
-10.建表 / 新增模型后（如 posts）
-.\venv\Scripts\python.exe -m app.init_db
-MySQL: USE lost_and_found; SHOW TABLES; DESCRIBE posts;
-
-11.启动FastAPI后端服务
-.\venv\Scripts\uvicorn.exe app.main:app --reload --host 127.0.0.1 --port 8000
+1.进入venv虚拟环境，启动服务
+
+
+
+.\venv\Scripts\uvicorn.exe app.main:app --reload
+
+
+
+
+
+
+
+2.测试服务是否正常
+
+
+
+浏览器：http://127.0.0.1:8000/health
+
+
+
+接口文档：http://127.0.0.1:8000/docs
+
+
+
+
+
+
+
+3..env 需配置（见 .env.example）
+
+
+
+   DATABASE_URL=...
+
+
+
+   JWT_SECRET_KEY=...（登录/JWT 必填）
+
+
+
+
+
+
+
+4.统一响应格式（所有接口）
+
+
+
+   成功：{"code":200,"message":"success","data":{...}}
+
+
+
+   失败：{"code":400/401/403/404/422,"message":"错误说明","data":null或校验详情}
+
+
+
+
+
+
+
+5.认证接口（Swagger 点 Authorize 粘贴 token）
+
+
+
+   POST /auth/register  注册
+
+
+
+   POST /auth/login     登录，data 里拿 access_token
+
+
+
+   GET  /auth/me        需 Bearer Token
+
+
+
+
+
+
+
+6.发帖（需先登录）
+
+
+
+   POST /api/posts
+
+
+
+   Body: {"post_type":"lost","title":"标题","description":"详情","location":"地点可选"}
+
+
+
+   post_type: lost | found
+
+
+
+
+
+
+
+7.帖子列表（无需登录）
+
+
+
+   GET /api/posts?page=1&page_size=10
+
+
+
+   GET /api/posts?type=lost          按类型筛选（lost | found）
+
+
+
+   data 里含 items、total、page、page_size；按创建时间倒序
+
+
+
+
+
+
+
+8.我的帖子（需登录）
+
+
+
+   GET /api/posts/mine?page=1&page_size=10
+
+
+
+   只返回当前用户发布的帖子
+
+
+
+
+
+
+
+9.帖子详情（无需登录）
+
+
+
+   GET /api/posts/{id}   例：GET /api/posts/1
+
+
+
+   data 里是单条帖子；id 不存在时 code=404
+
+
+
+
+
+
+
+10.关闭帖子（需登录，仅作者）
+
+
+
+   PATCH /api/posts/{id}/close   例：PATCH /api/posts/1/close
+
+
+
+   成功时 data.status 为 closed；已关闭再关 code=400
+
+
+
+
+
+
+
+11.删除帖子（需登录，仅作者）
+
+
+
+   DELETE /api/posts/{id}   例：DELETE /api/posts/1
+
+
+
+   成功 message 为「删除帖子成功」；删他人帖子 code=403
+
+
+
+
+
+
+
+12.错误自测（可选）
+
+
+
+   不登录调 /auth/me → 401
+
+
+
+   删/关他人帖子 → 403
+
+
+
+   GET /not-exist → 404，message 为「接口不存在」
+
+
+
+
+
+
+
+13.登录 MySQL
+
+
+
+mysql -u root -p
+
+
+
+
+
+
+
+14.建表 / 新增模型后
+
+
+
+.\venv\Scripts\python.exe -m app.init_db
+
+
+
+MySQL: USE lost_and_found; SHOW TABLES; DESCRIBE posts;
+
+
+
+
+
+
+
+15.启动FastAPI后端服务
+
+
+
+.\venv\Scripts\uvicorn.exe app.main:app --reload --host 127.0.0.1 --port 8000
+
+
+
+16.Swagger：http://127.0.0.1:8000/docs
+
+

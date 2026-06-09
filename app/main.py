@@ -20,8 +20,10 @@ app.include_router(post.router)
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """接住业务里 raise HTTPException(...) 抛出的错误。"""
+    """接住 HTTPException 及 Starlette 404 等，统一为 {code, message, data}。"""
     message = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
+    if exc.status_code == 404 and message == "Not Found":
+        message = "接口不存在"
     return JSONResponse(
         status_code=exc.status_code,
         content={
