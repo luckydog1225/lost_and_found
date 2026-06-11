@@ -166,12 +166,10 @@ def get_my_posts(
         # 没有.all()，查询不会真正执行，也拿不到数据
     )
     #把list[Post]转换成list[PostResponse]
-    items = []
-    for post in posts:
-        #把Post对象转换成PostResponse对象
-        item = PostResponse.model_validate(post, from_attributes=True)
-        #把PostResponse对象放进列表
-    items.append(item)
+    items = [
+        PostResponse.model_validate(post, from_attributes=True)
+        for post in posts
+    ]
     return success(
         data=PostListResponse(
             items = items,
